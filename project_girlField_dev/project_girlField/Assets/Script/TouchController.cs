@@ -1,14 +1,21 @@
 using UniRx;
 using UnityEngine;
 using Cysharp.Text;
+using System;
+using Cysharp.Threading.Tasks;
 using System.Collections.Generic;
 
 public class TouchController : MonoBehaviour
 {
     private CompositeDisposable disposables = new CompositeDisposable();
+    private FloatReactiveProperty touched = new FloatReactiveProperty();
+
+    public IObservable<float> TouchingTime => touched.AsObservable();
     void Start()
     {
-#if !UNITY_EDITOR
+        UpdateTouchState();
+
+#if UNITY_EDITOR
         Observable.EveryUpdate().Where(_ => Input.GetMouseButtonDown(0)).Subscribe(_ => 
         {
 			ShowTouchInfo(Input.mousePosition);
@@ -43,5 +50,25 @@ public class TouchController : MonoBehaviour
 		RaycastHit _hit;
 		if (Physics.Raycast(_ray, out _hit))
 			Debug.Log(ZString.Format("터치 위치1 :{0}", _hit.point));
+	}
+
+    private async UniTask UpdateTouchState()
+	{
+		try
+		{
+            while (true)
+            {
+                if(touched.Value > 0f)
+				{
+                    float _time = (touched.Value - Time.deltaTime);
+                    touched.Value = _time <= 0.0f ? 0.0f : _time;
+                }
+
+                await UniTask.Yield();
+            }
+        }
+        catch (OperationCanceledException)
+		{
+		}
 	}
 }
